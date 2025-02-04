@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 
-use ark_bls12_381::Fr;
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -157,19 +155,5 @@ impl ProvableVM {
             heap: self.heap.clone(),
             flags: self.flags,
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct ExecutionCircuit {
-    pub initial_state: ProvableState,
-    pub final_state: ProvableState,
-    pub program: Vec<Instruction>,
-    pub trace_commitment: Vec<u8>,
-}
-
-impl ConstraintSynthesizer<Fr> for ExecutionCircuit {
-    fn generate_constraints(self, _cs: ConstraintSystemRef<Fr>) -> ark_relations::r1cs::Result<()> {
-        Ok(())
     }
 }
