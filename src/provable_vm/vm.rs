@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 
 use eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Instruction {
@@ -56,7 +59,25 @@ impl ProvableVM {
                 break;
             }
         }
+        self.trace.push(self.capture_state());
         Ok(())
+    }
+
+    pub fn generate_trace_commitment(&self, trace_file: &str) -> Result<Vec<u8>> {
+        let mut hasher = Sha256::new();
+
+        for state in &self.trace {
+            let serialized = bincode::serialize(state)?;
+            hasher.update(serialized);
+        }
+
+        let hash = hasher.finalize();
+        let hex_hash = hex::encode(&hash);
+
+        let mut file = File::create(trace_file)?;
+        writeln!(file, "{}", hex_hash)?;
+
+        Ok(hash.to_vec())
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<bool> {
@@ -124,5 +145,14 @@ impl ProvableVM {
 
         self.pc += 1;
         Ok(true)
+    }
+
+    fn capture_state(&self) -> ProvableState {
+        ProvableState {
+            pc: self.pc,
+            stack: self.stack.clone(),
+            heap: self.heap.clone(),
+            flags: self.flags,
+        }
     }
 }
