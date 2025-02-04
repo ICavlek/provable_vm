@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use eyre::Result;
+use eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -50,7 +50,7 @@ impl ProvableVM {
         }
     }
 
-    pub fn run_program(&self, program: &[Instruction]) -> Result<()> {
+    pub fn run_program(&mut self, program: &[Instruction]) -> Result<()> {
         while let Some(program_instruction) = program.get(self.pc as usize) {
             if !self.execute_instruction(program_instruction)? {
                 break;
@@ -59,7 +59,70 @@ impl ProvableVM {
         Ok(())
     }
 
-    fn execute_instruction(&self, _instruction: &Instruction) -> Result<bool> {
-        Ok(false)
+    fn execute_instruction(&mut self, instruction: &Instruction) -> Result<bool> {
+        match instruction.opcode {
+            Opcode::PUSH => {
+                if let Some(value) = instruction.operand {
+                    self.stack.push(value);
+                } else {
+                    return Err(eyre!("PUSH requires an operand"));
+                }
+            }
+            Opcode::POP => {
+                self.stack
+                    .pop()
+                    .ok_or(eyre!("POP requires at least one element on the stack"))?;
+            }
+            Opcode::ADD => {
+                let a = self
+                    .stack
+                    .pop()
+                    .ok_or(eyre!("ADD requires two elements on the stack"))?;
+                let b = self
+                    .stack
+                    .pop()
+                    .ok_or(eyre!("ADD requires two elements on the stack"))?;
+                self.stack.push(a + b);
+            }
+            Opcode::SUB => {
+                let a = self
+                    .stack
+                    .pop()
+                    .ok_or(eyre!("SUB requires two elements on the stack"))?;
+                let b = self
+                    .stack
+                    .pop()
+                    .ok_or(eyre!("SUB requires two elements on the stack"))?;
+                self.stack.push(
+                    b.checked_sub(a)
+                        .ok_or(eyre!("SUB resulted in an underflow"))?,
+                );
+            }
+            Opcode::LOAD => {
+                let addr = instruction
+                    .operand
+                    .ok_or(eyre!("LOAD requires an address operand"))?;
+                let value = *self
+                    .heap
+                    .get(&addr)
+                    .ok_or(eyre!("LOAD failed: address {} not found", addr))?;
+                self.stack.push(value);
+            }
+            Opcode::STORE => {
+                let addr = instruction
+                    .operand
+                    .ok_or(eyre!("STORE requires an address operand"))?;
+                let value = self
+                    .stack
+                    .pop()
+                    .ok_or(eyre!("STORE requires a value on the stack"))?;
+                self.heap.insert(addr, value);
+            }
+            Opcode::HALT => return Ok(false),
+            _ => return Err(eyre!("Unsupported opcode: {:?}", instruction.opcode)),
+        }
+
+        self.pc += 1;
+        Ok(true)
     }
 }
