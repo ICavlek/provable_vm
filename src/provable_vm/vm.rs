@@ -55,6 +55,7 @@ impl ProvableVM {
 
     pub fn run_program(&mut self, program: &[Instruction]) -> Result<()> {
         while let Some(program_instruction) = program.get(self.pc as usize) {
+            self.trace.push(self.capture_state());
             if !self.execute_instruction(program_instruction)? {
                 break;
             }
