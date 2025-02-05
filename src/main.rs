@@ -2,7 +2,7 @@ use ark_bls12_381::Bls12_381;
 use ark_groth16::Groth16;
 use ark_snark::CircuitSpecificSetupSNARK;
 use provable_vm::provable_vm::{
-    circuit::ExecutionCircuit, program_loader::load_program, vm::ProvableVM,
+    circuit::ExecutionCircuit, program_loader::load_program, vm::ProvableVM, zk_proof,
 };
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
@@ -24,7 +24,8 @@ fn main() {
     };
 
     let mut rng = ChaCha20Rng::from_entropy();
-    let (pk, vk) = Groth16::<Bls12_381>::setup(circuit.clone(), &mut rng).unwrap();
-    println!("Proving key: {:#?}", pk);
-    println!("Verifying key: {:#?}", vk);
+    let (pk, _vk) = Groth16::<Bls12_381>::setup(circuit.clone(), &mut rng).unwrap();
+
+    let proof_file = "./target/program.proof";
+    zk_proof::generate_proof(&pk, circuit, proof_file).expect("Failed to generate proof");
 }
