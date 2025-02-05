@@ -1,4 +1,5 @@
-use ark_bls12_381::Bls12_381;
+use ark_bls12_381::{Bls12_381, Fr};
+use ark_ff::PrimeField;
 use ark_groth16::Groth16;
 use ark_snark::CircuitSpecificSetupSNARK;
 use provable_vm::provable_vm::{
@@ -20,12 +21,15 @@ fn main() {
         initial_state: vm.trace.first().unwrap().clone(),
         final_state: vm.trace.last().unwrap().clone(),
         program: program.clone(),
-        trace_commitment,
+        trace_commitment: trace_commitment.clone(),
     };
 
     let mut rng = ChaCha20Rng::from_entropy();
-    let (pk, _vk) = Groth16::<Bls12_381>::setup(circuit.clone(), &mut rng).unwrap();
+    let (pk, vk) = Groth16::<Bls12_381>::setup(circuit.clone(), &mut rng).unwrap();
 
     let proof_file = "./target/program.proof";
     zk_proof::generate_proof(&pk, circuit, proof_file).expect("Failed to generate proof");
+
+    let public_input: Vec<Fr> = vec![Fr::from_le_bytes_mod_order(&trace_commitment)];
+    zk_proof::verify_proof(proof_file, &vk, &public_input).expect("Failed to verify proof");
 }
